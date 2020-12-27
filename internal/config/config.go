@@ -9,6 +9,7 @@ import (
 type AppConfig struct {
 	AppPort       string `yaml:"port" env:"PORT"`
 	ReqTimeoutSec int    `yaml:"timeout" env:"REQTIMEOUTSEC" env-default:"10"`
+	DataPath      string `yaml:"datapath" env:"LOCATION_DATA_PATH"`
 }
 
 type LogConfig struct {
@@ -20,11 +21,11 @@ type Config struct {
 	LogConf LogConfig `yaml:"logging"`
 }
 
-func PrepareConfig(configFilePath string) *Config {
+func PrepareConfig(configFilePath string) (*Config, error) {
 	var cfg Config
 
 	if err := cleanenv.ReadConfig(configFilePath, &cfg); err != nil {
-		fmt.Printf("Unable to get app configuration due to: %s\n", err.Error())
+		return nil, fmt.Errorf("configuration read: %v", err)
 	}
-	return &cfg
+	return &cfg, nil
 }

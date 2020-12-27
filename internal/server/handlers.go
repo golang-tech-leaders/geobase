@@ -4,22 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"geobase/internal/database"
-	"geobase/internal/model"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"geobase/internal/model"
+
 	"github.com/gorilla/mux"
 )
 
-func (s *Server) getLocForWasteType(w http.ResponseWriter, r *http.Request) {
+func (s *Server) getLocURLForWasteType(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.timeout)*time.Second)
 	defer func() {
 		s.log.Debug().
 			Str("package", "server").
-			Str("func", "getLocForWasteType").
+			Str("func", "getLocURLForWasteType").
 			Msg("canceling context")
 		cancel()
 	}()
@@ -27,37 +28,22 @@ func (s *Server) getLocForWasteType(w http.ResponseWriter, r *http.Request) {
 
 	wasteTypeID := strings.ToLower(vars["type_id"])
 
-	latitudeParam := r.URL.Query().Get("latitude")
-	latitude, err := strconv.ParseFloat(latitudeParam, 32)
+	wasteTypeID, latitude, longitude, radius, err := s.getParams(r)
 	if err != nil {
-		http.Error(w, "Unable to get latitude due to:"+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	longitudeParam := r.URL.Query().Get("longitude")
-	longitude, err := strconv.ParseFloat(longitudeParam, 32)
-	if err != nil {
-		http.Error(w, "Unable to get longitude due to:"+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	radiusParam := r.URL.Query().Get("radius")
-	radius, err := strconv.ParseInt(radiusParam, 10, 32)
-	if err != nil {
-		http.Error(w, "Unable to get radius due to:"+err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	recyclingPointRequest := model.RecyclingPointRequest{
 		WasteTypeID: wasteTypeID,
-		Longitude:   float32(longitude),
-		Latitude:    float32(latitude),
+		Longitude:   longitude,
+		Latitude:    latitude,
 		Radius:      int(radius),
 	}
 
-	locationForWasteType, err := s.db.GetLocationForWasteType(ctx, recyclingPointRequest)
+	locationForWasteType, err := s.urlFinder.GetLocationURLForWasteType(ctx, recyclingPointRequest)
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
+		if errors.Is(err, model.ErrNotFound) {
 			http.Error(w, "No recycling point was found for waste type: "+wasteTypeID, http.StatusNotFound)
 			return
 		}
@@ -69,4 +55,140 @@ func (s *Server) getLocForWasteType(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (s *Server) getLocPointForWasteType(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.timeout)*time.Second)
+	defer func() {
+		s.log.Debug().
+			Str("package", "server").
+			Str("func", "getLocPointForWasteType").
+			Msg("canceling context")
+		cancel()
+	}()
+
+	wasteTypeID, latitude, longitude, radius, err := s.getParams(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	recyclingPointRequest := model.RecyclingPointRequest{
+		WasteTypeID: wasteTypeID,
+		Longitude:   longitude,
+		Latitude:    latitude,
+		Radius:      int(radius),
+	}
+
+	locations, err := s.locFinder.GetNearestWasteLocation(ctx, recyclingPointRequest)
+	if err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			http.Error(w, "No recycling point was found for waste type: "+wasteTypeID, http.StatusNotFound)
+			return
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	s.log.Debug().
+		Int("locations", len(locations)).
+		Msg("found")
+
+	loc := locations[0]
+
+	result := model.LocationResponse{
+		Latitude:  loc.Coordinate.Latitude,
+		Longitude: loc.Coordinate.Longitude,
+	}
+
+	err = json.NewEncoder(w).Encode(&result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) getLocPointListForWasteType(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.timeout)*time.Second)
+	defer func() {
+		s.log.Debug().
+			Str("package", "server").
+			Str("func", "getLocPointForWasteType").
+			Msg("canceling context")
+		cancel()
+	}()
+
+	wasteTypeID, latitude, longitude, radius, err := s.getParams(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	recyclingPointRequest := model.RecyclingPointRequest{
+		WasteTypeID: wasteTypeID,
+		Longitude:   longitude,
+		Latitude:    latitude,
+		Radius:      int(radius),
+	}
+
+	locations, err := s.locFinder.GetNearestWasteLocation(ctx, recyclingPointRequest)
+	if err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			http.Error(w, "No recycling point was found for waste type: "+wasteTypeID, http.StatusNotFound)
+			return
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	s.log.Debug().
+		Int("locations", len(locations)).
+		Msg("found")
+
+	result := make([]model.LocationResponse, 0, len(locations))
+
+	for idx := range locations {
+		result = append(result, model.LocationResponse{
+			Latitude:  locations[idx].Coordinate.Latitude,
+			Longitude: locations[idx].Coordinate.Longitude,
+		})
+	}
+
+	err = json.NewEncoder(w).Encode(&result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) getParams(r *http.Request) (wasteTypeID string, latitude, longitude float64, radius int64, err error) {
+	paramErr := func(param string, cause error) error {
+		return fmt.Errorf("unable to parse param %q: %s", param, err)
+	}
+
+	vars := mux.Vars(r)
+	wasteTypeID = strings.ToLower(vars["type_id"])
+
+	latitudeParam := r.URL.Query().Get("latitude")
+	latitude, err = strconv.ParseFloat(latitudeParam, 64)
+	if err != nil {
+		err = paramErr("latitude", err)
+		return
+	}
+
+	longitudeParam := r.URL.Query().Get("longitude")
+	longitude, err = strconv.ParseFloat(longitudeParam, 64)
+	if err != nil {
+		err = paramErr("longitude", err)
+		return
+	}
+
+	radiusParam := r.URL.Query().Get("radius")
+	radius, err = strconv.ParseInt(radiusParam, 10, 32)
+	if err != nil {
+		err = paramErr("radius", err)
+		return
+	}
+
+	return
 }

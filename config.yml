@@ -1,5 +1,6 @@
 app:
   port: "8080"
-  timeout: 10
+  timeout: 30
+  datapath: "static/points.json"
 logging:
   log_level: "debug"
