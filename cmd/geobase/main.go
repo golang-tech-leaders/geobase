@@ -8,7 +8,6 @@ import (
 	"geobase/internal/database"
 	"geobase/internal/logger"
 	"geobase/internal/server"
-	"geobase/internal/storage"
 )
 
 func main() {
@@ -18,13 +17,14 @@ func main() {
 		log.Fatal(err)
 	}
 	l := logger.New(cfg.LogConf)
-	urlFinder := database.New()
-	locFinder, err := storage.New(cfg.AppConf.DataPath)
+	urlFinder := database.NewURLFinder()
+	locFinder, err := database.NewLocationFinder(cfg.AppConf.DataPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	urlFinder.Init()
 	srv := server.NewServer(&cfg.AppConf, urlFinder, locFinder, l)
+	l.Info().Msg("starting server")
 	log.Fatal(srv.Run())
 }
 

@@ -13,5 +13,5 @@ type URLFinder interface {
 
 // LocationFinder return a list of locations near location
 type LocationFinder interface {
-	GetNearestWasteLocation(ctx context.Context, request model.RecyclingPointRequest) ([]model.WasteFacility, error)
+	GetNearestWasteLocation(ctx context.Context, request model.RecyclingPointRequest) ([]model.Coordinate, error)
 }
