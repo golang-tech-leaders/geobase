@@ -8,7 +8,7 @@ import (
 
 type InmemoryDB map[string]string
 
-func New() InmemoryDB {
+func NewURLFinder() InmemoryDB {
 	db := make(InmemoryDB, 10)
 	return db
 }

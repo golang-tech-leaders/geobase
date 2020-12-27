@@ -98,8 +98,8 @@ func (s *Server) getLocPointForWasteType(w http.ResponseWriter, r *http.Request)
 	loc := locations[0]
 
 	result := model.LocationResponse{
-		Latitude:  loc.Coordinate.Latitude,
-		Longitude: loc.Coordinate.Longitude,
+		Latitude:  loc.Latitude,
+		Longitude: loc.Longitude,
 	}
 
 	err = json.NewEncoder(w).Encode(&result)
@@ -150,8 +150,8 @@ func (s *Server) getLocPointListForWasteType(w http.ResponseWriter, r *http.Requ
 
 	for idx := range locations {
 		result = append(result, model.LocationResponse{
-			Latitude:  locations[idx].Coordinate.Latitude,
-			Longitude: locations[idx].Coordinate.Longitude,
+			Latitude:  locations[idx].Latitude,
+			Longitude: locations[idx].Longitude,
 		})
 	}
 

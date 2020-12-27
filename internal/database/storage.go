@@ -1,4 +1,4 @@
-package storage
+package database
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -26,8 +27,8 @@ type WastePlace struct {
 	Content   string `json:"content_text"`
 }
 
-// New creates a new server
-func New(datapath string) (*Storage, error) {
+// NewLocationFinder creates a new server
+func NewLocationFinder(datapath string) (*Storage, error) {
 	dir, _ := os.Getwd()
 	f, err := os.Open(filepath.Join(dir, datapath))
 	if err != nil {
@@ -65,12 +66,10 @@ func New(datapath string) (*Storage, error) {
 			return nil, err
 		}
 
-		wf.Coordinate = model.Coordinate{
+		s.Locations[model.Coordinate{
 			Latitude:  lat,
 			Longitude: lon,
-		}
-
-		s.Locations[wf.Coordinate] = wf
+		}] = wf
 	}
 
 	return &s, nil
@@ -78,27 +77,29 @@ func New(datapath string) (*Storage, error) {
 
 // GetNearestWasteLocation returns a list of nearest locations
 func (s Storage) GetNearestWasteLocation(
-	ctx context.Context, req model.RecyclingPointRequest) ([]model.WasteFacility, error) {
+	ctx context.Context, req model.RecyclingPointRequest) ([]model.Coordinate, error) {
 
-	locations := s.linearSearch(ctx, req.Latitude, req.Longitude, float64(req.Radius))
+	locations := s.linearSearch(ctx, req.Latitude, req.Longitude, float64(req.Radius), req.WasteTypeID)
 
-	validLocations := make([]model.WasteFacility, 0)
-	for idx := range locations {
-		if _, ok := locations[idx].WasteTypes[req.WasteTypeID]; ok {
-			validLocations = append(validLocations, locations[idx])
-		}
-	}
-
-	if len(validLocations) == 0 {
+	if len(locations) == 0 {
 		return nil, model.ErrNotFound
 	}
 
-	return validLocations, nil
+	sort.SliceStable(locations, func(i, j int) bool {
+		return locations[i].radius < locations[j].radius
+	})
+
+	res := make([]model.Coordinate, 0, len(locations))
+	for i := range locations {
+		res = append(res, locations[i].coords)
+	}
+
+	return res, nil
 }
 
 // linearSearch does suboptimal linear search
 func (s Storage) linearSearch(ctx context.Context,
-	lon, lat, rad float64) (res []model.WasteFacility) {
+	lon, lat, rad float64, wType string) (res []foundLocation) {
 	for c, l := range s.Locations {
 		select {
 		case <-ctx.Done():
@@ -106,8 +107,13 @@ func (s Storage) linearSearch(ctx context.Context,
 		default:
 		}
 
-		if math.Hypot(c.Longitude-lon, c.Latitude-lat) < rad {
-			res = append(res, l)
+		if cr := math.Hypot(c.Longitude-lon, c.Latitude-lat); cr < rad {
+			if _, ok := l.WasteTypes[wType]; ok {
+				res = append(res, foundLocation{
+					radius: cr,
+					coords: c,
+				})
+			}
 		}
 	}
 	return
@@ -118,4 +124,9 @@ func transformWasteType(t string) string {
 	t = strings.Replace(t, " ", "", -1)
 	t = strings.ToLower(t)
 	return t
+}
+
+type foundLocation struct {
+	radius float64
+	coords model.Coordinate
 }

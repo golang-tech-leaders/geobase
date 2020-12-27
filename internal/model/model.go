@@ -27,7 +27,6 @@ type Coordinate struct {
 }
 
 type WasteFacility struct {
-	Coordinate
 	Title      string
 	Address    string
 	WasteTypes map[string]struct{}
