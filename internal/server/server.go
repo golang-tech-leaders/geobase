@@ -2,56 +2,52 @@ package server
 
 import (
 	"fmt"
+	"geobase/internal/config"
+	"geobase/internal/logger"
 	"net/http"
 
 	"github.com/gorilla/mux"
-
-	"geobase/internal/models"
-	"geobase/internal/storage"
 )
 
-// Server is a main application server and handler structure
+// Server provides the server functionality
 type Server struct {
-	r            *mux.Router
-	st           *storage.Storage
-	srv          *http.Server
-	timeout      int
-	GoogleApiKey string
+	r       *mux.Router
+	db      GeobaseRepository
+	srv     *http.Server
+	timeout int
+	log     *logger.Logger
 }
 
-// New creates a new server
-func New(st *storage.Storage, cfg *models.Config) *Server {
-	srv := Server{
-		r:            mux.NewRouter(),
-		st:           st,
-		timeout:      cfg.ReqTimeoutSec,
-		GoogleApiKey: cfg.GoogleAPIKey,
+// NewServer creates a server and prepares a router
+func NewServer(cfg *config.AppConfig, storage GeobaseRepository, logger *logger.Logger) *Server {
+	s := Server{
+		r:       mux.NewRouter(),
+		db:      storage,
+		timeout: cfg.ReqTimeoutSec,
+		log:     logger,
 	}
-	srv.setupRouter()
+
+	s.setupRouter()
 
 	address := fmt.Sprintf(":%s", cfg.AppPort)
-	srv.srv = &http.Server{
-		Handler: srv.r,
+	s.srv = &http.Server{
+		Handler: s.r,
 		Addr:    address,
 	}
-	fmt.Println(srv.srv.Addr)
 
-	return &srv
+	return &s
 }
 
 func (s *Server) setupRouter() {
-	s.r.HandleFunc("/hello", s.hello).Methods("GET", "POST")
-	s.r.HandleFunc("/", s.hello).Methods("GET", "POST")
-	s.r.HandleFunc("/waste/type/{type_id}/location", s.getLocationURLByWasteType).
-		Queries("latitude", "{latitude}", "longitude", "{longitude}").
-		Methods("GET")
-	s.r.HandleFunc("/waste/type/{type_id}/point", s.getLocationPointByWasteType).
-		Queries("latitude", "{latitude}", "longitude", "{longitude}").
-		Methods("GET")
+	s.r.HandleFunc("/waste/type/{type_id}/location", s.getLocForWasteType).Methods("GET")
 }
 
-// Run server
+// Run starts the server
 func (s *Server) Run() error {
-
 	return s.srv.ListenAndServe()
+}
+
+// Shutdown closes server
+func (s *Server) Shutdown() error {
+	return s.srv.Close()
 }

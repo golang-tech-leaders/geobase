@@ -1,32 +1,24 @@
-version: '3'
+version: "3"
 
 services:
-    postgres:
-        image: postgres:13
-        container_name: postgres  
-        ports:
-            - 15432:5432
-        environment:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: postgres
-        volumes:
-            - ./temp:/var/lib/postgres
-        restart: always
-    app:
-        build: 
-            context: main
-            dockerfile: DockerFile
-        volumes:
-            - ./server:/go/src/app
-        depends_on:
-            - postgres
-        ports:
-            - "8080"
-        environment:
-            PORT: 8080
-            DBPORT: 5432
-            DBHOST: db
-            DBNAME: postgre_db
-            DBUSER: postgres
-            DBPASSWORD: postgres
-        restart: always
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    environment:
+      PORT: 8080
+    restart: always
+
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    ports:
+      - 15432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./temp:/var/lib/postgres
+    restart: always

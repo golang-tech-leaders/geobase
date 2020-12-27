@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-
 	"geobase/internal/config"
 	"geobase/internal/database"
 	"geobase/internal/logger"
+
 	"geobase/internal/server"
 )
 
@@ -20,7 +20,7 @@ func main() {
 }
 
 func getConfigFile() string {
-	configFile := flag.String("config", "config.yml", "config file")
+	configFile := flag.String("config", "config.yaml", "config file")
 	flag.Parse()
 	return *configFile
 }
