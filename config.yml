@@ -1,0 +1,5 @@
+"app_port": "8080"
+"host": "localhost"
+"datapath": "static/points.json"
+"ReqTimeoutSec": 10
+"GoogleApiKey": "AIzaSyDXCSk-TOCXXoTPngtVzgxUtvT49l8_jKE"
