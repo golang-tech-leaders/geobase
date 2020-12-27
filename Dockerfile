@@ -8,7 +8,7 @@ RUN go mod download -x
 COPY . ./
 
 ENV CGO_ENABLED=0
-RUN go build -v -o /bin/server cmd/geobased/main.go
+RUN go build -v -o /bin/server cmd/geobase/main.go
 
 FROM debian:buster-slim
 RUN set -x && apt-get update && \
@@ -17,6 +17,7 @@ RUN set -x && apt-get update && \
 
 WORKDIR /app
 COPY config.yml ./
+COPY static ./static
 COPY --from=builder /bin/server ./
 
 ENV PORT=8080
