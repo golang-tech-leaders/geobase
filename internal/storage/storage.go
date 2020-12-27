@@ -115,7 +115,7 @@ func (s Storage) linearSearch(ctx context.Context,
 
 // transformWasteType transforms free input type
 func transformWasteType(t string) string {
-	t = strings.TrimSpace(t)
+	t = strings.Replace(t, " ", "", -1)
 	t = strings.ToLower(t)
 	return t
 }
