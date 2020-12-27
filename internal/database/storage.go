@@ -15,7 +15,8 @@ import (
 
 // Storage of app
 type Storage struct {
-	Locations map[model.Coordinate]model.WasteFacility
+	Locations      map[model.Coordinate]model.WasteFacility
+	metersInRadius int
 }
 
 type WastePlace struct {
@@ -28,7 +29,7 @@ type WastePlace struct {
 }
 
 // NewLocationFinder creates a new server
-func NewLocationFinder(datapath string) (*Storage, error) {
+func NewLocationFinder(datapath string, metersInRadius int) (*Storage, error) {
 	dir, _ := os.Getwd()
 	f, err := os.Open(filepath.Join(dir, datapath))
 	if err != nil {
@@ -43,7 +44,8 @@ func NewLocationFinder(datapath string) (*Storage, error) {
 	}
 
 	s := Storage{
-		Locations: make(map[model.Coordinate]model.WasteFacility, len(locations)),
+		Locations:      make(map[model.Coordinate]model.WasteFacility, len(locations)),
+		metersInRadius: metersInRadius,
 	}
 
 	for _, l := range locations {
@@ -67,8 +69,10 @@ func NewLocationFinder(datapath string) (*Storage, error) {
 		}
 
 		s.Locations[model.Coordinate{
-			Latitude:  lat,
-			Longitude: lon,
+			Lat:    lat,
+			Lon:    lon,
+			RadLat: degreesToRadians(lat),
+			RadLon: degreesToRadians(lon),
 		}] = wf
 	}
 
@@ -99,7 +103,13 @@ func (s Storage) GetNearestWasteLocation(
 
 // linearSearch does suboptimal linear search
 func (s Storage) linearSearch(ctx context.Context,
-	lon, lat, rad float64, wType string) (res []foundLocation) {
+	lat, lon, rad float64, wType string) (res []foundLocation) {
+	var (
+		radLat = degreesToRadians(lat)
+		radLon = degreesToRadians(lon)
+		radius = rad * float64(s.metersInRadius)
+	)
+
 	for c, l := range s.Locations {
 		select {
 		case <-ctx.Done():
@@ -107,16 +117,35 @@ func (s Storage) linearSearch(ctx context.Context,
 		default:
 		}
 
-		if cr := math.Hypot(c.Longitude-lon, c.Latitude-lat); cr < rad {
+		dist := distance(radLat, radLon, c.RadLat, c.RadLon)
+
+		if dist < radius {
 			if _, ok := l.WasteTypes[wType]; ok {
 				res = append(res, foundLocation{
-					radius: cr,
+					radius: dist,
 					coords: c,
 				})
 			}
 		}
 	}
 	return
+}
+
+// degreesToRadians converts from degrees to radians.
+func degreesToRadians(d float64) float64 {
+	return d * math.Pi / 180
+}
+
+// distance finds distance between two points in meters
+func distance(lat1, lon1, lat2, lon2 float64) float64 {
+	const r = 6378100 // Earth radius in METERS
+	diffLat := lat2 - lat1
+	diffLon := lon2 - lon1
+
+	a := math.Pow(math.Sin(diffLat/2), 2) + math.Cos(lat1)*math.Cos(lat2)*
+		math.Pow(math.Sin(diffLon/2), 2)
+
+	return 2 * r * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 }
 
 // transformWasteType transforms free input type

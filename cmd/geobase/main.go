@@ -18,7 +18,7 @@ func main() {
 	}
 	l := logger.New(cfg.LogConf)
 	urlFinder := database.NewURLFinder()
-	locFinder, err := database.NewLocationFinder(cfg.AppConf.DataPath)
+	locFinder, err := database.NewLocationFinder(cfg.AppConf.DataPath, cfg.AppConf.MetersInRadius)
 	if err != nil {
 		log.Fatal(err)
 	}
