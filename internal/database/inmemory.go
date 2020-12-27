@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+
 	"geobase/internal/model"
 )
 
@@ -27,9 +28,9 @@ func (db InmemoryDB) Init() {
 	db["шины"] = "https://www.google.com/maps/@55.7188514,37.574609,17.97z"
 }
 
-func (db InmemoryDB) GetLocationForWasteType(ctx context.Context, recyclingPointRequest model.RecyclingPointRequest) (*model.RecyclingPointDBEntry, error) {
+func (db InmemoryDB) GetLocationURLForWasteType(_ context.Context, recyclingPointRequest model.RecyclingPointRequest) (*model.RecyclingPointDBEntry, error) {
 	if url, ok := db[recyclingPointRequest.WasteTypeID]; ok {
 		return &model.RecyclingPointDBEntry{WasteType: recyclingPointRequest.WasteTypeID, Url: url}, nil
 	}
-	return nil, ErrNotFound
+	return nil, model.ErrNotFound
 }

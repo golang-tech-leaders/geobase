@@ -2,29 +2,34 @@ package server
 
 import (
 	"fmt"
-	"geobase/internal/config"
-	"geobase/internal/logger"
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"geobase/internal/config"
+	"geobase/internal/logger"
 )
 
 // Server provides the server functionality
 type Server struct {
-	r       *mux.Router
-	db      GeobaseRepository
-	srv     *http.Server
-	timeout int
-	log     *logger.Logger
+	r   *mux.Router
+	srv *http.Server
+	log *logger.Logger
+
+	timeout   int
+	urlFinder URLFinder
+	locFinder LocationFinder
 }
 
 // NewServer creates a server and prepares a router
-func NewServer(cfg *config.AppConfig, storage GeobaseRepository, logger *logger.Logger) *Server {
+func NewServer(cfg *config.AppConfig,
+	urlFinder URLFinder, locFinder LocationFinder, logger *logger.Logger) *Server {
 	s := Server{
-		r:       mux.NewRouter(),
-		db:      storage,
-		timeout: cfg.ReqTimeoutSec,
-		log:     logger,
+		r:         mux.NewRouter(),
+		timeout:   cfg.ReqTimeoutSec,
+		log:       logger,
+		urlFinder: urlFinder,
+		locFinder: locFinder,
 	}
 
 	s.setupRouter()
@@ -39,7 +44,10 @@ func NewServer(cfg *config.AppConfig, storage GeobaseRepository, logger *logger.
 }
 
 func (s *Server) setupRouter() {
-	s.r.HandleFunc("/waste/type/{type_id}/location", s.getLocForWasteType).Methods("GET")
+	s.r.HandleFunc("/waste/type/{type_id}/location", s.getLocURLForWasteType).Methods("GET")
+	s.r.HandleFunc("/waste/type/{type_id}/point", s.getLocPointForWasteType).Methods("GET")
+	s.r.HandleFunc("/waste/type/{type_id}/points", s.getLocPointListForWasteType).Methods("GET")
+
 }
 
 // Run starts the server

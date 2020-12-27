@@ -1,18 +1,20 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"geobase/internal/models"
+	"geobase/internal/model"
 )
 
 // Storage of app
 type Storage struct {
-	Locations map[models.Coordinate]models.WasteFacility
+	Locations map[model.Coordinate]model.WasteFacility
 }
 
 type WastePlace struct {
@@ -40,12 +42,12 @@ func New(datapath string) (*Storage, error) {
 	}
 
 	s := Storage{
-		Locations: make(map[models.Coordinate]models.WasteFacility, len(locations)),
+		Locations: make(map[model.Coordinate]model.WasteFacility, len(locations)),
 	}
 
 	for _, l := range locations {
 		types := strings.Split(l.Content, ",")
-		wf := models.WasteFacility{
+		wf := model.WasteFacility{
 			Title:      l.Title,
 			Address:    l.Address,
 			WasteTypes: make(map[string]struct{}, len(types)),
@@ -63,13 +65,52 @@ func New(datapath string) (*Storage, error) {
 			return nil, err
 		}
 
-		s.Locations[models.Coordinate{
+		wf.Coordinate = model.Coordinate{
 			Latitude:  lat,
 			Longitude: lon,
-		}] = wf
+		}
+
+		s.Locations[wf.Coordinate] = wf
 	}
 
 	return &s, nil
+}
+
+// GetNearestWasteLocation returns a list of nearest locations
+func (s Storage) GetNearestWasteLocation(
+	ctx context.Context, req model.RecyclingPointRequest) ([]model.WasteFacility, error) {
+
+	locations := s.linearSearch(ctx, req.Latitude, req.Longitude, float64(req.Radius))
+
+	validLocations := make([]model.WasteFacility, 0)
+	for idx := range locations {
+		if _, ok := locations[idx].WasteTypes[req.WasteTypeID]; ok {
+			validLocations = append(validLocations, locations[idx])
+		}
+	}
+
+	if len(validLocations) == 0 {
+		return nil, model.ErrNotFound
+	}
+
+	return validLocations, nil
+}
+
+// linearSearch does suboptimal linear search
+func (s Storage) linearSearch(ctx context.Context,
+	lon, lat, rad float64) (res []model.WasteFacility) {
+	for c, l := range s.Locations {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		if math.Hypot(c.Longitude-lon, c.Latitude-lat) < rad {
+			res = append(res, l)
+		}
+	}
+	return
 }
 
 // transformWasteType transforms free input type
