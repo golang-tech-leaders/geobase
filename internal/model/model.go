@@ -22,8 +22,10 @@ type RecyclingPointDBEntry struct {
 }
 
 type Coordinate struct {
-	Latitude  float64
-	Longitude float64
+	Lat    float64
+	Lon    float64
+	RadLat float64
+	RadLon float64
 }
 
 type WasteFacility struct {

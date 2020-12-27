@@ -7,9 +7,10 @@ import (
 )
 
 type AppConfig struct {
-	AppPort       string `yaml:"port" env:"PORT"`
-	ReqTimeoutSec int    `yaml:"timeout" env:"REQTIMEOUTSEC" env-default:"10"`
-	DataPath      string `yaml:"datapath" env:"LOCATION_DATA_PATH"`
+	AppPort        string `yaml:"port" env:"PORT"`
+	ReqTimeoutSec  int    `yaml:"timeout" env:"REQTIMEOUTSEC" env-default:"10"`
+	DataPath       string `yaml:"datapath" env:"LOCATION_DATA_PATH"`
+	MetersInRadius int    `yaml:"meters_in_radius" env:"METERS_IN_RADIUS" env-default:"100"`
 }
 
 type LogConfig struct {
