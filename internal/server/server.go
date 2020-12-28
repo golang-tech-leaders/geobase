@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -16,7 +17,6 @@ type Server struct {
 	srv *http.Server
 	log *logger.Logger
 
-	timeout   int
 	urlFinder URLFinder
 	locFinder LocationFinder
 }
@@ -26,7 +26,6 @@ func NewServer(cfg *config.AppConfig,
 	urlFinder URLFinder, locFinder LocationFinder, logger *logger.Logger) *Server {
 	s := Server{
 		r:         mux.NewRouter(),
-		timeout:   cfg.ReqTimeoutSec,
 		log:       logger,
 		urlFinder: urlFinder,
 		locFinder: locFinder,
@@ -36,8 +35,9 @@ func NewServer(cfg *config.AppConfig,
 
 	address := fmt.Sprintf(":%s", cfg.AppPort)
 	s.srv = &http.Server{
-		Handler: s.r,
-		Addr:    address,
+		Handler:      s.r,
+		Addr:         address,
+		WriteTimeout: time.Duration(cfg.ReqTimeoutSec) * time.Second,
 	}
 
 	return &s

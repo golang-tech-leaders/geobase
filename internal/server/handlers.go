@@ -1,14 +1,12 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"geobase/internal/model"
 
@@ -16,18 +14,6 @@ import (
 )
 
 func (s *Server) getLocURLForWasteType(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.timeout)*time.Second)
-	defer func() {
-		s.log.Debug().
-			Str("package", "server").
-			Str("func", "getLocURLForWasteType").
-			Msg("canceling context")
-		cancel()
-	}()
-	vars := mux.Vars(r)
-
-	wasteTypeID := strings.ToLower(vars["type_id"])
-
 	wasteTypeID, latitude, longitude, radius, err := s.getParams(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -41,8 +27,16 @@ func (s *Server) getLocURLForWasteType(w http.ResponseWriter, r *http.Request) {
 		Radius:      int(radius),
 	}
 
-	locationForWasteType, err := s.urlFinder.GetLocationURLForWasteType(ctx, recyclingPointRequest)
+	locationForWasteType, err := s.urlFinder.GetLocationURLForWasteType(r.Context(), recyclingPointRequest)
 	if err != nil {
+		s.log.Error().
+			Err(err).
+			Str("wasteType", wasteTypeID).
+			Float64("latitude", latitude).
+			Float64("longitude", longitude).
+			Str("func", "getLocURLForWasteType").
+			Msg("processing failed")
+
 		if errors.Is(err, model.ErrNotFound) {
 			http.Error(w, "No recycling point was found for waste type: "+wasteTypeID, http.StatusNotFound)
 			return
@@ -58,15 +52,6 @@ func (s *Server) getLocURLForWasteType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getLocPointForWasteType(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.timeout)*time.Second)
-	defer func() {
-		s.log.Debug().
-			Str("package", "server").
-			Str("func", "getLocPointForWasteType").
-			Msg("canceling context")
-		cancel()
-	}()
-
 	wasteTypeID, latitude, longitude, radius, err := s.getParams(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -80,8 +65,16 @@ func (s *Server) getLocPointForWasteType(w http.ResponseWriter, r *http.Request)
 		Radius:      int(radius),
 	}
 
-	locations, err := s.locFinder.GetNearestWasteLocation(ctx, recyclingPointRequest)
+	locations, err := s.locFinder.GetNearestWasteLocation(r.Context(), recyclingPointRequest)
 	if err != nil {
+		s.log.Error().
+			Err(err).
+			Str("wasteType", wasteTypeID).
+			Float64("latitude", latitude).
+			Float64("longitude", longitude).
+			Str("func", "getLocPointForWasteType").
+			Msg("processing failed")
+
 		if errors.Is(err, model.ErrNotFound) {
 			http.Error(w, "No recycling point was found for waste type: "+wasteTypeID, http.StatusNotFound)
 			return
@@ -109,15 +102,6 @@ func (s *Server) getLocPointForWasteType(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) getLocPointListForWasteType(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.timeout)*time.Second)
-	defer func() {
-		s.log.Debug().
-			Str("package", "server").
-			Str("func", "getLocPointForWasteType").
-			Msg("canceling context")
-		cancel()
-	}()
-
 	wasteTypeID, latitude, longitude, radius, err := s.getParams(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -126,13 +110,21 @@ func (s *Server) getLocPointListForWasteType(w http.ResponseWriter, r *http.Requ
 
 	recyclingPointRequest := model.RecyclingPointRequest{
 		WasteTypeID: wasteTypeID,
-		Longitude:   longitude,
 		Latitude:    latitude,
+		Longitude:   longitude,
 		Radius:      int(radius),
 	}
 
-	locations, err := s.locFinder.GetNearestWasteLocation(ctx, recyclingPointRequest)
+	locations, err := s.locFinder.GetNearestWasteLocation(r.Context(), recyclingPointRequest)
 	if err != nil {
+		s.log.Error().
+			Err(err).
+			Str("wasteType", wasteTypeID).
+			Float64("latitude", latitude).
+			Float64("longitude", longitude).
+			Str("func", "getLocPointListForWasteType").
+			Msg("processing failed")
+
 		if errors.Is(err, model.ErrNotFound) {
 			http.Error(w, "No recycling point was found for waste type: "+wasteTypeID, http.StatusNotFound)
 			return
