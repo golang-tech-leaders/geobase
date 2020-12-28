@@ -17,6 +17,11 @@ func main() {
 		log.Fatal(err)
 	}
 	l := logger.New(cfg.LogConf)
+
+	l.Debug().Fields(map[string]interface{}{
+		"config": cfg,
+	}).Msg("config parsed")
+
 	urlFinder := database.NewURLFinder()
 	locFinder, err := database.NewLocationFinder(cfg.AppConf.DataPath, cfg.AppConf.MetersInRadius)
 	if err != nil {
